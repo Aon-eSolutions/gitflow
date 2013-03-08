@@ -61,6 +61,7 @@ cmd_default() {
 
 cmd_list() {
 	DEFINE_boolean verbose false 'verbose (more) output' v
+	gitflow_local_config_load_flags "feature" "list"
 	parse_args "$@"
 
 	local feature_branches
@@ -195,9 +196,28 @@ parse_remote_name() {
 
 cmd_start() {
 	DEFINE_boolean fetch false 'fetch from origin before performing local operation' F
+	gitflow_local_config_load_flags "feature" "start"
 	parse_args "$@"
 	BASE=${2:-$DEVELOP_BRANCH}
 	require_name_arg
+	
+	# Get Variables based on git flow local config
+	for full_variable in $(gitflow_local_config_all_variables "start.variables"); do
+		variable=$(echo $full_variable | sed 's/start.variables.//')
+		
+		echo $(gitflow_local_config_get_variable "$full_variable")
+		read answer
+		
+		regex_to_match=$(gitflow_local_config_get_variable "start.variableRegEx.$variable")
+		if [[ $regex_to_match != "" ]]; then
+			match_regex=$(echo "$answer" | sed "s/$regex_to_match//")
+			if [[ $match_regex != "" ]]; then
+				die "ERROR: Value $answer does not match required regular expression"
+			fi
+		fi
+		
+		git_do config gitflow.$BRANCH.$variable "$answer"
+	done
 
 	# sanity checks
 	require_branch_absent "$BRANCH"
@@ -235,8 +255,31 @@ cmd_finish() {
 	DEFINE_boolean keep false "keep branch after performing finish" k
 	DEFINE_boolean force_delete false "force delete feature branch after finish" D
 	DEFINE_boolean squash false "squash feature during merge" S
+	DEFINE_boolean squash_only false "squash feature during merge, and keep only squashed commit" O
+	gitflow_local_config_load_flags "feature" "finish"
 	parse_args "$@"
 	expand_nameprefix_arg_or_current
+	
+	commit_opts=""
+	commit_message=$(gitflow_local_config_get_variable "feature-finish.commitMessage")
+	if [[ $commit_message != "" ]]; then
+		
+		# expose the variables that were captured during start
+		for full_variable in $(git_do config --get-regexp "gitflow.$BRANCH" | sed -e 's/ .*//'); do
+			variable=$(echo $full_variable | sed 's/.*feature-//')
+			variable_value=$(git_do config --get $full_variable)
+			
+			eval $variable=$variable_value
+		done
+		
+		echo "$(eval echo $commit_message)" > tempCommitMessage.txt
+		
+		git_log_format=$(gitflow_local_config_get_variable "feature-finish.commitMessageAppendLog")
+		if [[ $git_log_format != "" ]]; then
+			echo "$(git_do log $DEVELOP_BRANCH..$BRANCH --pretty=format:"$git_log_format")" >> tempCommitMessage.txt
+		fi
+		commit_opts="-F tempCommitMessage.txt"
+	fi
 
 	# sanity checks
 	require_branch "$BRANCH"
@@ -315,13 +358,23 @@ cmd_finish() {
 	if [ "$(git rev-list -n2 "$DEVELOP_BRANCH..$BRANCH" | wc -l)" -eq 1 ]; then
 		git_do merge --ff "$BRANCH"
 	else
-		if noflag squash; then
-		    git_do merge --no-ff "$BRANCH"
-		else
+		if flag squash_only; then
 			git_do merge --squash "$BRANCH"
-			git_do commit
-			git_do merge "$BRANCH"
+			git_do commit $commit_opts
+		else
+			if noflag squash; then
+				git_do merge --no-ff "$BRANCH"
+			else
+				git_do merge --squash "$BRANCH"
+				git_do commit $commit_opts
+				git_do merge "$BRANCH"
+			fi
 		fi
+	fi
+	
+	# Cleanup the temp commit message
+	if [[ $commit_message != "" ]]; then
+		rm -rf tempCommitMessage.txt
 	fi
 
 	if [ $? -ne 0 ]; then
@@ -356,11 +409,15 @@ helper_finish_cleanup() {
 	
 	
 	if noflag keep; then
-		if flag force_delete; then
+		if flag force_delete || flag squash_only; then
 			git_do branch -D "$BRANCH"
 		else
 			git_do branch -d "$BRANCH"
 		fi
+		
+		# Cleanup of variables in config
+		git_do config --add gitflow.$BRANCH.dummy 'dummy'
+		git_do config --remove-section gitflow.$BRANCH
 	fi
 
 	echo
@@ -377,6 +434,7 @@ helper_finish_cleanup() {
 }
 
 cmd_publish() {
+	gitflow_local_config_load_flags "feature" "publish"
 	parse_args "$@"
 	expand_nameprefix_arg
 
@@ -404,6 +462,7 @@ cmd_publish() {
 }
 
 cmd_track() {
+	gitflow_local_config_load_flags "feature" "track"
 	parse_args "$@"
 	require_name_arg
 
@@ -424,6 +483,7 @@ cmd_track() {
 }
 
 cmd_diff() {
+	gitflow_local_config_load_flags "feature" "diff"
 	parse_args "$@"
 
 	if [ "$NAME" != "" ]; then
@@ -441,6 +501,7 @@ cmd_diff() {
 }
 
 cmd_checkout() {
+	gitflow_local_config_load_flags "feature" "checkout"
 	parse_args "$@"
 
 	if [ "$NAME" != "" ]; then
@@ -458,6 +519,7 @@ cmd_co() {
 
 cmd_rebase() {
 	DEFINE_boolean interactive false 'do an interactive rebase' i
+	gitflow_local_config_load_flags "feature" "rebase"
 	parse_args "$@"
 	expand_nameprefix_arg_or_current
 	warn "Will try to rebase '$NAME'..."

@@ -1,0 +1,89 @@
+Aon Additions to Git Flow
+=========================
+
+---
+
+Configuration File
+------------------
+
+The first addition is to add the ability for git flow to read from a file in the root directory of a repository, called ".gitflowConfig"
+
+This file contains information that is specific to a repository on how git flow should work, and will be used to drive some of the other features described below.
+
+Defaulting of Flags
+-------------------
+
+You can default the flags that you would like to use (for instance squash_only) per git flow command.  So far, the list of commands implmented are:
+
+* feature
+* init (use init as the sub-command)
+
+In order to do this, add a section to .gitflowConfig with the command name, and a sub-section of "default-flags".  You can then add a variable for each sub-command (i.e. start, finish) with the default flags.  Execute 'git flow ~command~ ~subcommand~ -h' for a list of these flags.  Example (for Squash Only and Force Delete on feature finish and Fetch on feature start):
+
+	[feature "default-flags"]
+		start = -F
+		finish = -O -D
+
+
+Feature Finish - Squash Only
+----------------------------
+
+The default method of git flow feature finish -S will squash while merging, but then still perform merging afterwords.  This makes sure that ALL commits get into the develop branch, but may not be desirable.  With this addition, a user can specify "-O" to git flow feature finish to perform just git merge --squash, without the following git merge.  This will, in turn, force delete the branch, since the merge isn't happening.
+
+Feature Start - Prompting for variables
+---------------------------------------
+
+For some of the other features, it may be necessary to capture some information when creating a feature branch.  A good use case for this is capturing a bug id, that can get appended to a commit message.  In this case, you can put a section in .gitflowConfig to satisfy prompting for variables.  For Example:
+
+	[feature-start "variables"]
+		bugId = Bug ID:
+
+Now, when you execute 'git flow feature start ~name~' it will prompt the user to enter a Bug ID, and store this into the .git/config file as such:
+
+	[gitflow "feature/test"]
+		bugId = 123456
+
+These variables will be removed when the branch is removed during Feature Finish.  If the branch is not to be removed (via options) the variables will stay.
+
+**Variable Validation**
+
+The user entered variable can be validated in many ways (one written so far)
+
+*Regular Expressions*
+
+Any input may be validated against any regular expression that 'sed' supports.  In order to configure this, add a variablesRegEx section in the .gitflowConfig file.  For example, to validate that bugId is 6 numerical characters:
+
+	[feature-start "variableRegEx"]
+		bugId = [0-9]\\{6\\}
+
+Feature Finish - Set Squash Commit Message
+-----------------------------------
+
+When doing Squash or Squash Only when finishing a feature, there is now an option to set the commit message of that squashed commit.  In order to do this, add a "feature-finish" section in .gitflowConfig.  This section should have a 'commitMessage' variable that is equal to whatever you want the commit message to be, with variables replaced.  The variables that are available are the ones from feature-start variables (in all lower case).  For example:
+
+	[feature-finish]
+		commitMessage = BugId:${bugid} - Finish of ${BRANCH}
+
+**Note 'bugid' is in all lowercase, whereas it's bugId in feature-start!**
+
+There are also several git flow built in variables:
+
+* NAME - Name of the feature given during git flow feature start ~name~
+* BRANCH - Name of the feature branch
+* DEVELOP_BRANCH - Name of the destination branch
+* MASTER_BRANCH - Name of the master branch
+
+There is also a feature to append a 'git log' command to the commit message.  To do this, add the commitMessageAppendLog variable to the feature-finish configuration section.  The value of this variable MUST be the argument to 'git log --pretty:format'  For example, to show the Hash + Full Commit Message, configure the following:
+
+	[feature-finish]
+		commitMessageAppendLog = %h %B
+		commitMessage = BugId:${bugid} - Finish of ${BRANCH} with commits:
+
+An example commit message might look like this in the above configuration:
+
+	BugId:012345 - Finish of feature/myNewfeature with commits:
+	8a28928 Testing
+
+	e0ac4be Line One of commit
+	- Sub Feature
+	- Another Feature

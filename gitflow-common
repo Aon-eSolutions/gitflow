@@ -249,6 +249,33 @@ gitflow_resolve_nameprefix() {
 }
 
 #
+# Gitflow Local Configuration Methods
+#
+gitflow_local_config_all_variables() {
+	gitflow_load_settings
+	local section_name=$1
+	
+	echo $(git config -f $DOT_GIT_DIR/../.gitflowConfig --get-regexp $section_name\\. | sed -e 's/ .*//')
+}
+
+gitflow_local_config_get_variable() {
+	gitflow_load_settings
+	local variable_name=$1
+
+	echo $(git config -f $DOT_GIT_DIR/../.gitflowConfig --get $variable_name)
+}
+
+gitflow_local_config_load_flags() {
+	local git_flow_command=$1
+	local git_flow_sub_command=$2
+	local config_options=$(gitflow_local_config_get_variable "$git_flow_command.default-flags.$git_flow_sub_command")
+	
+	for option in $(echo $config_options); do
+		FLAGS "$option"
+	done
+}
+
+#
 # Assertions for use in git-flow subcommands
 #
 
