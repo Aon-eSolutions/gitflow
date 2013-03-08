@@ -66,8 +66,16 @@ if exist "%GIT_HOME%\bin\%1" goto :EOF
 if exist "%USERPROFILE%\bin\%1" goto :EOF
 if exist "%~f$PATH:1" goto :EOF
 echo %GIT_HOME%\bin\%1 not found.>&2
-echo You have to install this file manually. See the GitFlow README.
-exit /B 1
+echo Attempting to download automatically.
+
+:DownloadGetOpt
+"%GIT_HOME%\bin\curl.exe" -L -O http://downloads.sourceforge.net/gnuwin32/util-linux-ng-2.14.1-bin.zip
+"%GIT_HOME%\bin\curl.exe" -L -O http://downloads.sourceforge.net/gnuwin32/util-linux-ng-2.14.1-dep.zip
+"%GIT_HOME%\bin\unzip.exe" -jo "util-linux-ng-2.14.1-bin.zip" "bin/getopt.exe" -d "%GIT_HOME%\bin"
+"%GIT_HOME%\bin\unzip.exe" -jo "util-linux-ng-2.14.1-dep.zip" "bin/libintl3.dll" -d "%GIT_HOME%\bin"
+del util-linux-ng-2.14.1-bin.zip
+del util-linux-ng-2.14.1-dep.zip
+goto :EOF
 
 :FindGitHome
 setlocal
