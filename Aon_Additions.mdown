@@ -51,10 +51,10 @@ The user entered variable can be validated in many ways (one written so far)
 
 *Regular Expressions*
 
-Any input may be validated against any regular expression that 'sed' supports.  In order to configure this, add a variablesRegEx section in the .gitflowConfig file.  For example, to validate that bugId is 6 numerical characters:
+Any input may be validated against any regular expression that 'sed -r' supports.  In order to configure this, add a variablesRegEx section in the .gitflowConfig file.  For example, to validate that bugId is 6 numerical characters:
 
 	[feature-start "variableRegEx"]
-		bugId = [0-9]\\{6\\}
+		feature-bugId = [0-9]\\{6\\}
 
 Feature Finish - Set Squash Commit Message
 -----------------------------------

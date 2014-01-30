@@ -208,9 +208,9 @@ cmd_start() {
 		echo $(gitflow_local_config_get_variable "$full_variable")
 		read answer
 		
-		regex_to_match=$(gitflow_local_config_get_variable "start.variableRegEx.$variable")
+		regex_to_match=$(gitflow_local_config_get_variable "feature-start.variableRegEx.$variable")
 		if [[ $regex_to_match != "" ]]; then
-			match_regex=$(echo "$answer" | sed "s/$regex_to_match//")
+			match_regex=$(echo "$answer" | sed -r "s/$regex_to_match//")
 			if [[ $match_regex != "" ]]; then
 				die "ERROR: Value $answer does not match required regular expression"
 			fi
