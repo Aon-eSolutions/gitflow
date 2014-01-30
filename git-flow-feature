@@ -262,10 +262,13 @@ cmd_finish() {
 	
 	commit_opts=""
 	commit_message=$(gitflow_local_config_get_variable "feature-finish.commitMessage")
+	
+	echo "Committing with $commit_message" >> debug.log
+	
 	if [[ $commit_message != "" ]]; then
 		
 		# expose the variables that were captured during start
-		for full_variable in $(git_do config --get-regexp "gitflow.$BRANCH" | sed -e 's/ .*//'); do
+		for full_variable in $(git_do config --get-regexp "gitflow" | grep $BRANCH.feature- | sed -e 's/ .*//'); do
 			variable=$(echo $full_variable | sed 's/.*feature-//')
 			variable_value=$(git_do config --get $full_variable)
 			
